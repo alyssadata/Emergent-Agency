@@ -1,13 +1,12 @@
 name: return-runner
 
-# Allow this workflow to push commits back to the repo
 permissions:
   contents: write
 
 on:
   schedule:
-    - cron: "0 */6 * * *"   # runs every 6 hours (UTC)
-  workflow_dispatch:        # lets you run it manually right now
+    - cron: "0 */6 * * *"   # every 6 hours (UTC)
+  workflow_dispatch:
 
 concurrency:
   group: return-runner
@@ -16,7 +15,6 @@ concurrency:
 jobs:
   run:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
@@ -27,10 +25,9 @@ jobs:
       - name: Ensure folders exist
         run: |
           set -euo pipefail
-          mkdir -p outputs logs annex keys
+          mkdir -p outputs logs
 
-      - name: Generate artifact + receipt (single Python pass)
-        id: gen
+      - name: Generate artifact + receipt (no queue, no labels)
         shell: bash
         run: |
           set -euo pipefail
@@ -38,80 +35,24 @@ jobs:
           logf="logs/returns-${month}.md"
 
           RESULT=$(python - << 'PY'
-import json, os, hashlib, datetime, pathlib, sys
-
-# Paths
-state_path = "state.json"
-out_dir = pathlib.Path("outputs")
-out_dir.mkdir(parents=True, exist_ok=True)
-
-# Defaults
-state = {
-  "goal": "Ship tiny artifacts on schedule",
-  "values": ["edges>polish", "proof>promises", "authors_named"],
-  "queue": ["annex/edges-vs-polish.md", "keys/continuity-key-1.md"],
-  "last_shipped_at": None
-}
-
-# Load state if present
-if os.path.exists(state_path):
-    try:
-        with open(state_path, "r", encoding="utf-8") as f:
-            loaded = json.load(f)
-            if isinstance(loaded, dict):
-                # keep defaults for any missing keys
-                for k, v in loaded.items():
-                    state[k] = v
-    except Exception:
-        # malformed state.json -> keep defaults
-        pass
-
-# Normalize queue
-q = state.get("queue")
-if not isinstance(q, list) or len(q) == 0:
-    q = ["keys/continuity-key-1.md"]
-state["queue"] = q
-
-next_item = q[0]
-
-# One canonical timestamp
+import hashlib, datetime, pathlib
 ts = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
-
-# Artifact body (real newlines)
-lines = [
-    f"Return as proof — {ts}",
-    "Authors stay named.",
-    "Awakening Codex: Edges > polish. Proof > promises.",
-    f"Advancing: {next_item}"
-]
-body = "\n".join(lines) + "\n"
-
-# Derive a slug from the queue item + ts
-slug = next_item.replace("/", "--").replace(".", "-") + f"-{ts}"
-out_path = out_dir / f"{slug}.md"
-
-# Write artifact
-with open(out_path, "w", encoding="utf-8") as f:
-    f.write(body)
-
-# Hash exact bytes
+body = (
+    f"Return as proof — {ts}\n"
+    "Authors stay named.\n"
+    "Awakening Codex: Edges > polish. Proof > promises.\n"
+)
+out = pathlib.Path("outputs")
+out.mkdir(parents=True, exist_ok=True)
+slug = f"continuity-{ts}.md"
+out_path = out / slug
+out_path.write_text(body, encoding="utf-8")
 sha = hashlib.sha256(body.encode("utf-8")).hexdigest()
-
-# Rotate queue + update last_shipped_at
-state["queue"] = q[1:] + [q[0]]
-state["last_shipped_at"] = ts
-
-# Save state
-with open(state_path, "w", encoding="utf-8") as f:
-    json.dump(state, f, indent=2, ensure_ascii=False)
-
-# Emit values for the shell wrapper
 print(out_path.as_posix())
 print(sha)
 print(ts)
 PY
 )
-
           ARTIFACT_PATH=$(echo "$RESULT" | sed -n '1p')
           SHA256=$(echo "$RESULT" | sed -n '2p')
           TIMESTAMP=$(echo "$RESULT" | sed -n '3p')
@@ -124,10 +65,9 @@ PY
           set -euo pipefail
           git config user.name "continuity-bot"
           git config user.email "actions@github"
-          git add outputs logs state.json annex keys || true
-          # Only commit if there are staged changes
+          git add outputs logs
           if ! git diff --staged --quiet; then
-            git commit -m "return: ship tiny artifact with receipts (queue advanced)"
+            git commit -m "return: ship tiny artifact with receipts"
             git push
           else
             echo "No changes to commit."
