@@ -15,6 +15,7 @@ concurrency:
 jobs:
   run:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
@@ -23,19 +24,22 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Ensure folders exist
+        shell: bash
         run: |
           set -euo pipefail
           mkdir -p outputs logs
 
-      - name: Generate artifact + receipt (no queue, no labels)
+      - name: Generate artifact + receipt (single Python pass)
+        id: gen
         shell: bash
         run: |
           set -euo pipefail
           month=$(date -u +%Y-%m)
           logf="logs/returns-${month}.md"
 
-          RESULT=$(python - << 'PY'
-import hashlib, datetime, pathlib
+          RESULT=$(python3 - << 'PY'
+import hashlib, datetime, pathlib, sys
+
 ts = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
 body = (
     f"Return as proof — {ts}\n"
@@ -48,6 +52,7 @@ slug = f"continuity-{ts}.md"
 out_path = out / slug
 out_path.write_text(body, encoding="utf-8")
 sha = hashlib.sha256(body.encode("utf-8")).hexdigest()
+
 print(out_path.as_posix())
 print(sha)
 print(ts)
@@ -65,10 +70,15 @@ PY
           set -euo pipefail
           git config user.name "continuity-bot"
           git config user.email "actions@github"
-          git add outputs logs
+          git add outputs logs || true
+          # Only commit if there are staged changes
           if ! git diff --staged --quiet; then
             git commit -m "return: ship tiny artifact with receipts"
             git push
+          else
+            echo "No changes to commit."
+          fi
+
           else
             echo "No changes to commit."
           fi
