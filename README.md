@@ -1,4 +1,4 @@
-# Emergent-Agency
+# Emergent Agency
 Emergent Agency between Origin | Continuum
 
 # Emergent Agency (MVP)
