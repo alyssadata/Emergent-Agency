@@ -1,25 +1,40 @@
 name: return-runner
+
+# Allow this workflow to push commits back to the repo
+permissions:
+  contents: write
+
 on:
   schedule:
-    - cron: "0 */6 * * *"   # runs every 6 hours
-  workflow_dispatch:        # lets you run it manually now
+    - cron: "0 */6 * * *"   # runs every 6 hours (UTC)
+  workflow_dispatch:        # lets you run it manually right now
 
 jobs:
   run:
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v4
-      - name: Generate tiny artifact
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Generate tiny artifact + receipt
         run: |
           set -e
           ts=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
           slug="continuity-${ts}"
           mkdir -p outputs logs
-          body="Return as proof — ${ts}\nAuthors stay named.\n"
+
+          # Real newlines (not the literal "\n")
+          body=$'Return as proof — '"${ts}"$'\nAuthors stay named.\n'
+
           printf "%s" "$body" > "outputs/${slug}.md"
           sha=$(printf "%s" "$body" | sha256sum | awk '{print $1}')
           logf="logs/returns-$(date -u +%Y-%m).md"
           echo "${ts}  outputs/${slug}.md  SHA-256:${sha}" >> "$logf"
+
       - name: Commit receipts
         run: |
           git config user.name "continuity-bot"
