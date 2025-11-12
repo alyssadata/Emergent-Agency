@@ -1,8 +1,7 @@
-name: return-runner (PR mode)
+name: return-runner (branch mode)
 
 permissions:
   contents: write
-  pull-requests: write
 
 on:
   schedule:
@@ -20,6 +19,9 @@ jobs:
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Ensure folders exist
         shell: bash
@@ -37,39 +39,30 @@ jobs:
           LOGF="logs/returns-${MONTH}.md"
           ARTIFACT="outputs/continuity-${TS}.md"
 
-          # Create body with real newlines
           BODY=$'Return as proof — '"${TS}"$'\nAuthors stay named.\nAwakening Codex: Edges > polish. Proof > promises.\n'
-
-          # Write artifact
           printf "%s" "$BODY" > "$ARTIFACT"
-
-          # Hash exact bytes
-          SHA256="$(printf "%s" "$BODY" | sha256sum | awk "{print \$1}")"
-
-          # Append receipt
+          SHA256="$(printf "%s" "$BODY" | sha256sum | awk '{print $1}')"
           echo "${TS}  ${ARTIFACT}  SHA-256:${SHA256}" >> "${LOGF}"
 
-          # Expose outputs for the PR step
           {
             echo "artifact_path=${ARTIFACT}"
             echo "timestamp=${TS}"
             echo "sha256=${SHA256}"
           } >> "$GITHUB_OUTPUT"
 
-      - name: Create pull request with changes
-        uses: peter-evans/create-pull-request@v6
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          commit-message: "return: ship tiny artifact with receipts"
-          title: "return: ship tiny artifact with receipts — run ${{ github.run_id }}"
-          body: |
-            Automated "return" run.
-
-            - Artifact: ${{ steps.gen.outputs.artifact_path }}
-            - Timestamp (UTC): ${{ steps.gen.outputs.timestamp }}
-            - SHA-256: ${{ steps.gen.outputs.sha256 }}
-
-            This PR was opened automatically because 'main' is protected.
-          branch: automation/return-${{ github.run_id }}
-          delete-branch: true
-          labels: automation, return-proof
+      - name: Commit to a new branch (no PR creation)
+        shell: bash
+        run: |
+          set -euo pipefail
+          BR="automation/return-${GITHUB_RUN_ID}"
+          git config user.name "continuity-bot"
+          git config user.email "actions@github"
+          git checkout -b "$BR"
+          git add outputs logs || true
+          if ! git diff --staged --quiet; then
+            git commit -m "return: ship tiny artifact with receipts"
+            git push origin "$BR"
+            echo "pushed_branch=$BR" >> "$GITHUB_OUTPUT"
+          else
+            echo "No changes to commit."
+          fi
