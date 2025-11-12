@@ -1,0 +1,29 @@
+name: return-runner
+on:
+  schedule:
+    - cron: "0 */6 * * *"   # runs every 6 hours
+  workflow_dispatch:        # lets you run it manually now
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Generate tiny artifact
+        run: |
+          set -e
+          ts=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          slug="continuity-${ts}"
+          mkdir -p outputs logs
+          body="Return as proof — ${ts}\nAuthors stay named.\n"
+          printf "%s" "$body" > "outputs/${slug}.md"
+          sha=$(printf "%s" "$body" | sha256sum | awk '{print $1}')
+          logf="logs/returns-$(date -u +%Y-%m).md"
+          echo "${ts}  outputs/${slug}.md  SHA-256:${sha}" >> "$logf"
+      - name: Commit receipts
+        run: |
+          git config user.name "continuity-bot"
+          git config user.email "actions@github"
+          git add outputs logs
+          git commit -m "return: ship tiny artifact with receipts" || echo "No changes"
+          git push
