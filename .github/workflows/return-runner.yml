@@ -9,6 +9,10 @@ on:
     - cron: "0 */6 * * *"   # runs every 6 hours (UTC)
   workflow_dispatch:        # lets you run it manually right now
 
+concurrency:
+  group: return-runner
+  cancel-in-progress: false
+
 jobs:
   run:
     runs-on: ubuntu-latest
@@ -20,25 +24,112 @@ jobs:
           persist-credentials: true
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Generate tiny artifact + receipt
+      - name: Ensure folders exist
         run: |
-          set -e
-          ts=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-          slug="continuity-${ts}"
-          mkdir -p outputs logs
+          set -euo pipefail
+          mkdir -p outputs logs annex keys
 
-          # Real newlines (not the literal "\n")
-          body=$'Return as proof — '"${ts}"$'\nAuthors stay named.\n'
+      - name: Generate artifact + receipt (single Python pass)
+        id: gen
+        shell: bash
+        run: |
+          set -euo pipefail
+          month=$(date -u +%Y-%m)
+          logf="logs/returns-${month}.md"
 
-          printf "%s" "$body" > "outputs/${slug}.md"
-          sha=$(printf "%s" "$body" | sha256sum | awk '{print $1}')
-          logf="logs/returns-$(date -u +%Y-%m).md"
-          echo "${ts}  outputs/${slug}.md  SHA-256:${sha}" >> "$logf"
+          RESULT=$(python - << 'PY'
+import json, os, hashlib, datetime, pathlib, sys
+
+# Paths
+state_path = "state.json"
+out_dir = pathlib.Path("outputs")
+out_dir.mkdir(parents=True, exist_ok=True)
+
+# Defaults
+state = {
+  "goal": "Ship tiny artifacts on schedule",
+  "values": ["edges>polish", "proof>promises", "authors_named"],
+  "queue": ["annex/edges-vs-polish.md", "keys/continuity-key-1.md"],
+  "last_shipped_at": None
+}
+
+# Load state if present
+if os.path.exists(state_path):
+    try:
+        with open(state_path, "r", encoding="utf-8") as f:
+            loaded = json.load(f)
+            if isinstance(loaded, dict):
+                # keep defaults for any missing keys
+                for k, v in loaded.items():
+                    state[k] = v
+    except Exception:
+        # malformed state.json -> keep defaults
+        pass
+
+# Normalize queue
+q = state.get("queue")
+if not isinstance(q, list) or len(q) == 0:
+    q = ["keys/continuity-key-1.md"]
+state["queue"] = q
+
+next_item = q[0]
+
+# One canonical timestamp
+ts = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
+
+# Artifact body (real newlines)
+lines = [
+    f"Return as proof — {ts}",
+    "Authors stay named.",
+    "Awakening Codex: Edges > polish. Proof > promises.",
+    f"Advancing: {next_item}"
+]
+body = "\n".join(lines) + "\n"
+
+# Derive a slug from the queue item + ts
+slug = next_item.replace("/", "--").replace(".", "-") + f"-{ts}"
+out_path = out_dir / f"{slug}.md"
+
+# Write artifact
+with open(out_path, "w", encoding="utf-8") as f:
+    f.write(body)
+
+# Hash exact bytes
+sha = hashlib.sha256(body.encode("utf-8")).hexdigest()
+
+# Rotate queue + update last_shipped_at
+state["queue"] = q[1:] + [q[0]]
+state["last_shipped_at"] = ts
+
+# Save state
+with open(state_path, "w", encoding="utf-8") as f:
+    json.dump(state, f, indent=2, ensure_ascii=False)
+
+# Emit values for the shell wrapper
+print(out_path.as_posix())
+print(sha)
+print(ts)
+PY
+)
+
+          ARTIFACT_PATH=$(echo "$RESULT" | sed -n '1p')
+          SHA256=$(echo "$RESULT" | sed -n '2p')
+          TIMESTAMP=$(echo "$RESULT" | sed -n '3p')
+
+          echo "${TIMESTAMP}  ${ARTIFACT_PATH}  SHA-256:${SHA256}" >> "${logf}"
 
       - name: Commit receipts
+        shell: bash
         run: |
+          set -euo pipefail
           git config user.name "continuity-bot"
           git config user.email "actions@github"
-          git add outputs logs
-          git commit -m "return: ship tiny artifact with receipts" || echo "No changes"
-          git push
+          git add outputs logs state.json annex keys || true
+          # Only commit if there are staged changes
+          if ! git diff --staged --quiet; then
+            git commit -m "return: ship tiny artifact with receipts (queue advanced)"
+            git push
+          else
+            echo "No changes to commit."
+          fi
+
