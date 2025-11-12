@@ -1,7 +1,8 @@
-name: return-runner
+name: return-runner (PR mode)
 
 permissions:
   contents: write
+  pull-requests: write
 
 on:
   schedule:
@@ -19,9 +20,6 @@ jobs:
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
-        with:
-          persist-credentials: true
-          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Ensure folders exist
         shell: bash
@@ -29,7 +27,7 @@ jobs:
           set -euo pipefail
           mkdir -p outputs logs
 
-      - name: Generate artifact + receipt (single Python pass)
+      - name: Generate artifact + receipt
         id: gen
         shell: bash
         run: |
@@ -38,21 +36,18 @@ jobs:
           logf="logs/returns-${month}.md"
 
           RESULT=$(python3 - << 'PY'
-import hashlib, datetime, pathlib, sys
-
+import hashlib, datetime, pathlib
 ts = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
 body = (
     f"Return as proof — {ts}\n"
     "Authors stay named.\n"
     "Awakening Codex: Edges > polish. Proof > promises.\n"
 )
-out = pathlib.Path("outputs")
-out.mkdir(parents=True, exist_ok=True)
+out = pathlib.Path("outputs"); out.mkdir(parents=True, exist_ok=True)
 slug = f"continuity-{ts}.md"
 out_path = out / slug
 out_path.write_text(body, encoding="utf-8")
 sha = hashlib.sha256(body.encode("utf-8")).hexdigest()
-
 print(out_path.as_posix())
 print(sha)
 print(ts)
@@ -64,20 +59,28 @@ PY
 
           echo "${TIMESTAMP}  ${ARTIFACT_PATH}  SHA-256:${SHA256}" >> "${logf}"
 
-      - name: Commit receipts
-        shell: bash
-        run: |
-          set -euo pipefail
-          git config user.name "continuity-bot"
-          git config user.email "actions@github"
-          git add outputs logs || true
-          # Only commit if there are staged changes
-          if ! git diff --staged --quiet; then
-            git commit -m "return: ship tiny artifact with receipts"
-            git push
-          else
-            echo "No changes to commit."
-          fi
+          # expose values as reusable step outputs
+          echo "artifact_path=${ARTIFACT_PATH}" >> "$GITHUB_OUTPUT"
+          echo "sha256=${SHA256}" >> "$GITHUB_OUTPUT"
+          echo "timestamp=${TIMESTAMP}" >> "$GITHUB_OUTPUT"
+
+      - name: Create pull request with changes
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "return: ship tiny artifact with receipts"
+          title: "return: ship tiny artifact with receipts — run ${{ github.run_id }}"
+          body: |
+            Automated “return” run.
+
+            - Artifact: ${{ steps.gen.outputs.artifact_path }}
+            - Timestamp (UTC): ${{ steps.gen.outputs.timestamp }}
+            - SHA-256: ${{ steps.gen.outputs.sha256 }}
+
+            This PR was opened automatically because `main` is protected.
+          branch: automation/return-${{ github.run_id }}
+          delete-branch: true
+          labels: automation, return-proof
 
           else
             echo "No changes to commit."
