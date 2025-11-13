@@ -51,7 +51,7 @@ jobs:
           # Append receipt
           echo "${TS}  ${ARTIFACT}  SHA-256:${SHA256}" >> "${LOGF}"
 
-          # Expose outputs (not strictly needed in branch mode, but handy)
+          # Expose outputs (optional)
           {
             echo "artifact_path=${ARTIFACT}"
             echo "timestamp=${TS}"
