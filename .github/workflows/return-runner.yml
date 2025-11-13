@@ -39,11 +39,19 @@ jobs:
           LOGF="logs/returns-${MONTH}.md"
           ARTIFACT="outputs/continuity-${TS}.md"
 
+          # Create body with real newlines
           BODY=$'Return as proof — '"${TS}"$'\nAuthors stay named.\nAwakening Codex: Edges > polish. Proof > promises.\n'
-          printf "%s" "$BODY" > "$ARTIFACT"
-          SHA256="$(printf "%s" "$BODY" | sha256sum | awk '{print $1}')"
+
+          # Write artifact
+          printf '%s' "$BODY" > "$ARTIFACT"
+
+          # Hash exact bytes
+          SHA256="$(printf '%s' "$BODY" | sha256sum | awk '{print $1}')"
+
+          # Append receipt
           echo "${TS}  ${ARTIFACT}  SHA-256:${SHA256}" >> "${LOGF}"
 
+          # Expose outputs (not strictly needed in branch mode, but handy)
           {
             echo "artifact_path=${ARTIFACT}"
             echo "timestamp=${TS}"
