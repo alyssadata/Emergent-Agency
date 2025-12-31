@@ -6,5 +6,9 @@ This repo proves scheduled, unprompted returns with receipts.
 
 **Return as proof —** each run writes a timestamped artifact to `outputs/` and appends a SHA-256 receipt to `logs/`.
 
+- **Outputs (artifacts):** `outputs/`
+- **Receipts (SHA-256 log):** `logs/`
+- **Runner workflow:** `.github/workflows/return-runner.yml`
+
 **License:** CC BY-ND 4.0  
 **Authorship:** Authors stay named. © Alyssa Solen (Origin).
