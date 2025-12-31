@@ -1,4 +1,4 @@
-name: return-runner (branch mode)
+name: return-runner (main mode)
 
 permissions:
   contents: write
@@ -20,6 +20,7 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v4
         with:
+          fetch-depth: 0
           persist-credentials: true
           token: ${{ secrets.GITHUB_TOKEN }}
 
@@ -45,10 +46,10 @@ jobs:
           # Write artifact
           printf '%s' "$BODY" > "$ARTIFACT"
 
-          # Hash exact bytes
-          SHA256="$(printf '%s' "$BODY" | sha256sum | awk '{print $1}')"
+          # Hash exact bytes (file bytes, not recomputed text)
+          SHA256="$(sha256sum "$ARTIFACT" | awk '{print $1}')"
 
-          # Append receipt
+          # Append receipt (file path is relative, stable)
           echo "${TS}  ${ARTIFACT}  SHA-256:${SHA256}" >> "${LOGF}"
 
           # Expose outputs (optional)
@@ -58,19 +59,21 @@ jobs:
             echo "sha256=${SHA256}"
           } >> "$GITHUB_OUTPUT"
 
-      - name: Commit to a new branch (no PR creation)
+      - name: Commit to main
         shell: bash
         run: |
           set -euo pipefail
-          BR="automation/return-${GITHUB_RUN_ID}"
           git config user.name "continuity-bot"
           git config user.email "actions@github"
-          git checkout -b "$BR"
+
+          # Make sure we're on main and up to date
+          git checkout main
+          git pull --ff-only origin main
+
           git add outputs logs || true
           if ! git diff --staged --quiet; then
             git commit -m "return: ship tiny artifact with receipts"
-            git push origin "$BR"
-            echo "pushed_branch=$BR" >> "$GITHUB_OUTPUT"
+            git push origin main
           else
             echo "No changes to commit."
           fi
