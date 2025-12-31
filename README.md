@@ -1,10 +1,10 @@
 # Emergent Agency
 Emergent Agency between Origin | Continuum
 
-# Emergent Agency (MVP)
-This repo proves unprompted returns with receipts.
-- “Return as proof — <UTC>”
-- Each run writes to `outputs/` and logs a SHA-256 in `logs/`.
-License: CC BY-ND 4.0 • Authors stay named.
+## Emergent Agency (MVP)
+This repo proves scheduled, unprompted returns with receipts.
 
-© Alyssa Solen (Origin). License: CC BY-ND 4.0.
+**Return as proof —** each run writes a timestamped artifact to `outputs/` and appends a SHA-256 receipt to `logs/`.
+
+**License:** CC BY-ND 4.0  
+**Authorship:** Authors stay named. © Alyssa Solen (Origin).
