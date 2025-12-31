@@ -46,10 +46,10 @@ jobs:
           # Write artifact
           printf '%s' "$BODY" > "$ARTIFACT"
 
-          # Hash exact bytes (file bytes, not recomputed text)
+          # Hash exact bytes of the artifact file
           SHA256="$(sha256sum "$ARTIFACT" | awk '{print $1}')"
 
-          # Append receipt (file path is relative, stable)
+          # Append receipt
           echo "${TS}  ${ARTIFACT}  SHA-256:${SHA256}" >> "${LOGF}"
 
           # Expose outputs (optional)
@@ -63,13 +63,15 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+
           git config user.name "continuity-bot"
           git config user.email "actions@github"
 
-          # Make sure we're on main and up to date
+          # Make sure we are on main and up to date
           git checkout main
           git pull --ff-only origin main
 
+          # Commit + push if there are changes
           git add outputs logs || true
           if ! git diff --staged --quiet; then
             git commit -m "return: ship tiny artifact with receipts"
