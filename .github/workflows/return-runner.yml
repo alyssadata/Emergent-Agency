@@ -105,7 +105,8 @@ jobs:
           SHA256="$(sha256sum "$ARTIFACT" | awk '{print $1}')"
 
           # Append receipt
-          echo "${TS}  ${ARTIFACT}  SHA-256:${SHA256}" >> "${LOGF}"
+          # NOTE: the two trailing spaces before the newline force a visible line break in GitHub Markdown preview
+          printf "%s  %s  SHA-256:%s  \n" "$TS" "$ARTIFACT" "$SHA256" >> "$LOGF"
 
           # Expose outputs (optional)
           {
