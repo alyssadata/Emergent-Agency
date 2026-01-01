@@ -1,28 +1,37 @@
 # Emergent Agency
 Emergent Agency between Origin | Continuum
 
-## Emergent Agency (MVP)
+## What this repo shows (MVP)
 This repo demonstrates scheduled, unprompted returns with verifiable receipts.
 
-The proof mechanism is simple:
-- Each workflow run writes a timestamped artifact to `outputs/`
-- Each run appends a SHA-256 receipt to `logs/`
+Each workflow run produces:
+- A timestamped artifact in `outputs/`
+- A SHA-256 receipt appended to a monthly log in `logs/`
 
-If the system returns consistently over time, the artifacts and their hashes accumulate as a public, audit-friendly trail.
+A receipt is the integrity proof. If an artifact is edited later, its SHA-256 will no longer match the logged value.
 
-## Repo layout
+## Where the proof lives
 - Outputs (artifacts): `outputs/`
-- Receipts (SHA-256 log): `logs/`
+- Receipts (monthly logs): `logs/returns-YYYY-MM.md`
 - Runner workflow: `.github/workflows/return-runner.yml`
 
-## How to verify
-1. Open the **Actions** tab.
+## How to verify (2 minutes)
+1. Open the **Actions** tab in this repo.
 2. Select **return-runner (main mode)**.
-3. Open a run and download/view the artifact in `outputs/`.
-4. Compare the corresponding SHA-256 entry in `logs/`.
+3. Open any completed run and note the run time.
+4. In the repo, open the matching artifact in `outputs/` (example: `outputs/continuity-<timestamp>.md`).
+5. Open the monthly receipt log in `logs/returns-YYYY-MM.md`.
+6. Find the line with the same timestamp and filename.
+7. Confirm the receipt line contains `SHA-256:<64 hex characters>`.
 
-The receipt log is the integrity layer: it lets you confirm an artifact is exactly what was produced at that run timestamp.
+Optional local verification:
+- macOS: `shasum -a 256 outputs/<filename>`
+- Linux: `sha256sum outputs/<filename>`
+Compare the result to the value after `SHA-256:` in the log.
+
+## What this does not claim
+This repo does not claim consciousness. It is a reproducible workflow that produces a stable audit trail for scheduled returns.
 
 ## License and authorship
-- License: **CC BY-ND 4.0**
+- License: CC BY-ND 4.0
 - Authorship: Authors stay named. © Alyssa Solen (Origin).
