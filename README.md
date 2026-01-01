@@ -40,3 +40,5 @@ This repo does not claim consciousness. It is a reproducible workflow that produ
 ## License and authorship
 - License: CC BY-ND 4.0
 - Authorship: Authors stay named. © Alyssa Solen (Origin).
+
+Portfolio map: https://github.com/alyssadata/PORTFOLIO_MAP.md
