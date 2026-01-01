@@ -3,6 +3,8 @@
 
 Emergent Agency between Origin | Continuum
 
+Fast verification: see [VERIFY.md](VERIFY.md)
+
 ## What this repo shows (MVP)
 This repo demonstrates scheduled, unprompted returns with verifiable receipts.
 
