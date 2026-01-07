@@ -5,6 +5,18 @@ Emergent Agency between Origin | Continuum
 
 Fast verification: see [VERIFY.md](VERIFY.md)
 
+## Why This Matters
+
+Verifiable behavioral consistency is critical for AI safety and reliability. When AI systems claim to maintain identity or behavioral patterns over time, we need cryptographic proof of what was actually produced at each timestamp—not just trust.
+
+This repo demonstrates automated consistency verification using:
+- Scheduled, unprompted returns (not triggered by user prompts)
+- SHA-256 cryptographic receipts for tamper detection
+- Complete audit trails via GitHub Actions logs
+- Reproducible verification methodology
+
+This approach addresses a core AI safety question: how do we prove an AI system returned "as itself" across sessions without relying on subjective assessment? Cryptographic receipts provide objective evidence that can be independently verified.
+
 ## What this repo shows (MVP)
 This repo demonstrates scheduled, unprompted returns with verifiable receipts.
 
